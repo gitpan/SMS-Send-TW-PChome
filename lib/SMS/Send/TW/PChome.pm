@@ -2,11 +2,11 @@ package SMS::Send::TW::PChome;
 
 use strict;
 use base 'SMS::Send::Driver';
-use Net::SMS::PChome;
+use WWW::Mechanize;
 
 use vars qw{$VERSION};
 BEGIN {
-   $VERSION = '0.01';
+   $VERSION = '0.02';
 }
 
 sub new {
@@ -24,16 +24,63 @@ sub new {
 sub send_sms {
    my $self   = shift;
    my %params = @_;
+   my $baseurl = 'http://sms.pchome.com.tw/jsp/smslong.jsp';
 
-   my $sms = Net::SMS::PChome->new(
-      username  => $self->{"_username"},
-      password  => $self->{"_password"},
-      authcode  => $self->{"_authcode"},
+   # Get the message and destination
+   my $message   = $self->_MESSAGE( $params{text} );
+   my $recipient = $self->_TO( delete $params{to} );
+   
+   my $ua = WWW::Mechanize->new(
+      agent => __PACKAGE__." v. $VERSION",
    );
 
-   $sms->smsRecipient($params{"to"});
-   return $sms->smsSend($params{"text"});
+   $ua->agent_alias('Windows IE 6');
+   
+   # Should be ok now, right? Let's send it!
+   # Login
+   $ua->get($baseurl);
+   $ua->form_number(1);
+   $ua->field('smsid', $self->{"_username"});
+   $ua->field('pwd', $self->{"_password"});
+   $ua->submit();   
+   
+   # Input SMS_Message, Recipients
+   $ua->form_number(2);
+   $ua->field('InputMsg', $message);
+   $ua->field('mobiles', $recipient);
+   $ua->field('sendType', '1');
+   $ua->field('longCount', '1');  # count of recipient
+   $ua->submit();
+
+   # Input Authcode	
+   $ua->field('auth_code', $self->{"_authcode"});
+   $ua->current_form()->action('https://ezpay.pchome.com.tw/auth_form_do');
+   $ua->submit();
+   
+   return $ua->content;
 }
+
+sub _MESSAGE {
+
+  my $class = ref $_[0] ? ref shift : shift;
+  my $message = shift;
+  unless ( length($message) <= 160 ) {
+    Carp::croak("Message length limit is 160 characters");
+  }
+  
+  return $message;
+}
+
+sub _TO {
+  my $class = ref $_[0] ? ref shift : shift;
+  my $to = shift;
+
+  # International numbers need their + removed
+  $to =~ y/0123456789//cd;
+
+  return $to;
+}
+  
 
 1;
 __END__
@@ -45,7 +92,7 @@ SMS::Send::TW::PChome - SMS::Send driver for sms.pchome.com.tw
 
 =head1 SYNOPSIS
 
-  use SMS::Send::TW::PChome;
+  use SMS::Send;
 
   my $sender = SMS::Send->new('TW::PChome',
                   _username   => 'UserName',
@@ -68,10 +115,7 @@ SMS::Send::TW::PChome is a SMS::Send driver which allows you to send messages th
 
 The C<new> method takes a few parameters. C<_username> , C<_password> , and C<_authcode>
 are mandatory. 
-See L<Net::SMS::PChome> for details on these parameters. 
-
-This driver is a very simplified wrapper around L<Net::SMS::PChome> 
-and provides a lot less functionality than L<Net::SMS::PChome>.
+See L<WWW::Mechanize> for details on these parameters. 
 
 =head2 send_sms
 
@@ -85,7 +129,7 @@ supposed to be delivered.
 
 =item * L<Send::SMS>
 
-=item * L<Net::SMS::PChome>
+=item * L<WWW::Mechanize>
 
 =back
 
@@ -100,7 +144,7 @@ Tsung-Han Yeh, E<lt>snowfly@yuntech.edu.twE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2006 by Tsung-Han Yeh
+Copyright (C) 2007 by Tsung-Han Yeh
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,

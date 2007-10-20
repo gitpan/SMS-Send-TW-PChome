@@ -1,4 +1,4 @@
-SMS-Send-TW-PChome version 0.01
+SMS-Send-TW-PChome version 0.02
 ===============================
 
 The README is used to introduce the module and provide instructions on
@@ -26,13 +26,14 @@ DEPENDENCIES
 This module requires these other modules and libraries:
 
   1) Send::SMS
-  2) Net::SMS::PChome
+  2) WWW::Mechanize
+  3) Crypt::SSLeay
 
 COPYRIGHT AND LICENCE
 
 Put the correct copyright and licence information here.
 
-Copyright (C) 2006 by Tsung-Han Yeh
+Copyright (C) 2007 by Tsung-Han Yeh
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,
