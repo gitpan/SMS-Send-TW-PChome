@@ -3,10 +3,11 @@ package SMS::Send::TW::PChome;
 use strict;
 use base 'SMS::Send::Driver';
 use WWW::Mechanize;
+use Text::Iconv;
 
 use vars qw{$VERSION};
 BEGIN {
-   $VERSION = '0.02';
+   $VERSION = '0.03';
 }
 
 sub new {
@@ -24,7 +25,6 @@ sub new {
 sub send_sms {
    my $self   = shift;
    my %params = @_;
-   my $baseurl = 'http://sms.pchome.com.tw/jsp/smslong.jsp';
 
    # Get the message and destination
    my $message   = $self->_MESSAGE( $params{text} );
@@ -38,23 +38,29 @@ sub send_sms {
    
    # Should be ok now, right? Let's send it!
    # Login
-   $ua->get($baseurl);
-   $ua->form_number(1);
-   $ua->field('smsid', $self->{"_username"});
-   $ua->field('pwd', $self->{"_password"});
-   $ua->submit();   
+   $ua->post('https://login.pchome.com.tw/adm/person_sell.htm',
+		[ 'mbrid'	=> $self->{"_username"},
+		  'mbrpass'	=> $self->{"_password"},
+		  'chan'    	=> 'sms',
+		  'record_ipw'  => 'false',
+		  'ltype'	=> 'checklogin',
+		  'buyflag'	=> '', ]);
+  
    
    # Input SMS_Message, Recipients
-   $ua->form_number(2);
-   $ua->field('InputMsg', $message);
-   $ua->field('mobiles', $recipient);
-   $ua->field('sendType', '1');
-   $ua->field('longCount', '1');  # count of recipient
-   $ua->submit();
+   $ua->get('http://sms.pchome.com.tw/quick_index.htm');
+   $ua->post('http://sms.pchome.com.tw/check_msg.htm',
+		[ 'encoding_type' => 'BIG5',
+		  'msg_body'	  => $message,
+		  'mobile_list'	  => $recipient,
+		  'send_type'	  => 1, ]);
+
 
    # Input Authcode	
-   $ua->field('auth_code', $self->{"_authcode"});
-   $ua->current_form()->action('https://ezpay.pchome.com.tw/auth_form_do');
+   $ua->field('ezpay_key', $ua->value('ezpay_key'));	# Forward Hidden field: ezpay_key
+   $ua->field('exh_no', $ua->value('exh_no'));		# Forward Hidden field: exh_no
+   $ua->field('auth_code', $self->{"_authcode"});	# put Auth Code
+   $ua->current_form()->action('https://ezpay.pchome.com.tw/auth_access.htm');
    $ua->submit();
    
    return $ua->content;
@@ -64,11 +70,12 @@ sub _MESSAGE {
 
   my $class = ref $_[0] ? ref shift : shift;
   my $message = shift;
+  my $converter = Text::Iconv->new("big5", "utf-8");
   unless ( length($message) <= 160 ) {
     Carp::croak("Message length limit is 160 characters");
   }
   
-  return $message;
+  return $converter->convert($message);
 }
 
 sub _TO {
@@ -152,3 +159,4 @@ at your option, any later version of Perl 5 you may have available.
 
 
 =cut
+

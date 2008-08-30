@@ -9,6 +9,7 @@ WriteMakefile(
             'SMS::Send'			=> 0,
 	    'WWW::Mechanize'		=> 1.18,
 	    'Crypt::SSLeay'		=> 0.51,
+	    'Text::Iconv'		=> 1.7,
     },
     ($] >= 5.006001 ?     ## Add these new keywords supported since 5.006001
       (ABSTRACT_FROM  => 'lib/SMS/Send/TW/PChome.pm', # retrieve abstract from module
